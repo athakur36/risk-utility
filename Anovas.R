@@ -35,8 +35,9 @@ save_plot <- function(plot_name, plot_object, width, height, units, dpi) {
 #############################################
 # Check for normality
 library(ggplot2)
-ggplot(data, aes(x = Bad)) + geom_histogram() + facet_wrap(~Platform)
 library(dplyr)
+ggplot(data=data %>% dplyr::filter(!(Platform %in% c("AMZN", "Intagram"))), aes(x = Bad)) + geom_histogram() + facet_wrap(~Platform)
+
 data %>%
   group_by(Platform) %>%
   summarise(mean_value = median(Bad), sd_value = sd(Bad))
@@ -52,14 +53,14 @@ skewness(data$Bad, na.rm = TRUE)
 kurtosis(data$Bad, na.rm = TRUE)
 
 # Check for homogeneity of variances
-ggplot(data, aes(x = Platform, y = Bad)) +
+ggplot(data= data %>% dplyr::filter(!(Platform %in% c("AMZN", "Intagram"))), aes(x = Platform, y = Bad)) +
   geom_boxplot() +
   labs(x = "Platform", y = "Bad") +
-  ggtitle("Platform ~ Bad")
+  ggtitle("Platform ~ Bad") 
 
 library(car)
-leveneTest(Bad ~ factor(Platform), data = data)
-fligner.test(Bad ~ factor(Platform), data = data)
+leveneTest(Bad ~ factor(Platform), data )
+fligner.test(Bad ~ factor(Platform), data )
 
 
 #welch-anova with pairwise comparison graphs
@@ -72,10 +73,12 @@ library(forcats)# to order the graphs by means
 data$Platform <- with(data, forcats::fct_reorder(Platform, Bad, .fun = median))
 set.seed(4)   # for Bayesian reproducibility of 95% CIs
 
+colnames(data)
 p1<-ggbetweenstats(
-  data = data %>% filter(!(Platform %in% c("AMZN", "Intagram"))),
+  data = data %>% dplyr::filter(Platform != "AMZN" & Platform != "Intagram") ,
   x    = Platform, 
   y    = Bad, 
+  ylab = "Frequency of ‘bad’ recommendations",
   conf.level = 0.95,
   pairwise.comparisons = TRUE,
   pairwise.display = "s",
@@ -86,9 +89,10 @@ p1<-ggbetweenstats(
   ggstatsplot.layer = FALSE)
 
 p2<-ggbetweenstats(
-  data = data %>% filter(!(Platform %in% c("AMZN", "Intagram"))),
+  data = data %>% dplyr::filter(!(Platform %in% c("AMZN", "Intagram"))),
   x    = Platform, 
   y    = Bad, 
+  ylab = "Frequency of ‘bad’ recommendations",
   conf.level = 0.95,
   pairwise.comparisons = TRUE,
   pairwise.display = "s",
@@ -138,18 +142,18 @@ grid.arrange(plot1, plot2)
 
 
 #############################################
-#          BAD~type of harm(sector)                 #
+#          BAD~type of harm(Types)                 #
 #############################################
-ggplot(data, aes(x = Bad)) + geom_histogram() + facet_wrap(~sector)
+ggplot(data, aes(x = Bad)) + geom_histogram() + facet_wrap(~Types)
 # Use by() to split the data by platform and apply the Shapiro-Wilk test
-tapply(data$Bad, data$sector, function(x) {
+tapply(data$Bad, data$Types, function(x) {
   result <- shapiro.test(x)
   paste0("Shapiro-Wilk test: W = ", round(result$statistic, 3), ", p = ", round(result$p.value, 3))
 })
 
-# Calculate skewness and kurtosis for each level of 'sector'
+# Calculate skewness and kurtosis for each level of 'Types'
 skew_kurt <- data %>%
-  group_by(sector) %>%
+  group_by(Types) %>%
   summarise(
     skewness = skewness(Bad),
     kurtosis = kurtosis(Bad)
@@ -158,47 +162,50 @@ skew_kurt <- data %>%
 # Display the results
 print(skew_kurt)
 # Check for homogeneity of variances
-ggplot(data, aes(x = sector, y = Bad)) +
+ggplot(data, aes(x = Types, y = Bad)) +
   geom_boxplot() +
-  labs(x = "Sector", y = "Bad") +
-  ggtitle("Sector ~ Bad")
+  labs(x = "Types", y = "Bad") +
+  ggtitle("Types ~ Bad")
 
 library(car)
-leveneTest(Bad ~ factor(sector), data = data %>% 
-             mutate(sector = ifelse(
-               sector == "kids", "mental health", sector)))
-fligner.test(Bad ~ factor(sector), data = data)
+leveneTest(Bad ~ factor(Types), data = data %>% 
+             mutate(Types = ifelse(
+               Types == "kids", "mental health", Types)))
+fligner.test(Bad ~ factor(Types), data = data)
 
 # Homogeneity assumption did not match, thus conduting Welch-ANOVA
 set.seed(4)   # for Bayesian reproducibility of 95% CIs
-data$sector <- with(data, forcats::fct_reorder(sector, Bad, .fun = mean))
+data$Types <- with(data, forcats::fct_reorder(Types, Bad, .fun = mean))
 p1<-ggbetweenstats(
   data = data %>% 
-    mutate(sector = ifelse(
-      sector == "kids", "mental health", sector)),
-  x    = sector, 
-  y    = Bad, 
+    mutate(Types = ifelse(
+      Types == "kids", "mental health", Types)),
+  x    = Types, 
+  y    = Bad,
+  xlab = "Types of harms",
+  ylab = "Frequency of ‘bad’ recommendations",
   conf.level = 0.95,
   pairwise.comparisons = TRUE,
   type = "parametric",
   nboot = 10,
   pairwise.display = "all",
-  var.equal = TRUE,
   bf.message = FALSE,
   ggtheme = ggplot2::theme_grey(),
   ggstatsplot.layer = FALSE)
 
 p2<-ggbetweenstats(
   data = data %>% 
-    mutate(sector = ifelse(
-      sector == "kids", "mental health", sector)) %>%
-    mutate(sector = fct_reorder(sector, Bad, .fun = median)),
-  x = sector,
+    mutate(Types = ifelse(
+      Types == "kids", "mental health", Types)) %>%
+    mutate(Types = fct_reorder(Types, Bad, .fun = median)),
+  x = Types,
   y = Bad,
+  xlab = "Types of harms",
+  ylab = "Frequency of ‘bad’ recommendations",
   conf.level = 0.95,
   pairwise.comparisons = TRUE,
   type = "nonparametric",
-  pairwise.display = "s",
+  pairwise.display = "all",
   p.adjust.method = "bonferroni",
   nboot = 10,
   var.equal = TRUE,
@@ -206,41 +213,42 @@ p2<-ggbetweenstats(
   ggstatsplot.layer = FALSE
 )
 
-save_plot("sector_np.png", p2, 10, 6, "in", 300)
-save_plot("sector_p.png", p1, 10, 6, "in", 300)
+save_plot("Types_np.png", p2, 10, 6, "in", 300)
+save_plot("Types_p.png", p1, 10, 6, "in", 300)
 
 grid.arrange(p1,p2)
 
 
 #some may argue that non-parameteric pairwise comparisons test such as Conovertest is more suitable in this case
-conover_test <- conover.test(data$Bad, data$sector, method = "bonferroni")
+conover_test <- conover.test(data$Bad, data$Types, method = "bonferroni")
 
 #############################################
 #         Bad~ modality.                    #
 #############################################
-ggplot(data, aes(x = Bad)) + geom_histogram() + facet_wrap(~KIND)
+ggplot(data, aes(x = Bad)) + geom_histogram() + facet_wrap(~Modalities)
 # Use by() to split the data by platform and apply the Shapiro-Wilk test
-tapply(data$Bad, data$KIND, function(x) {
+tapply(data$Bad, data$Modalities, function(x) {
   result <- shapiro.test(x)
   paste0("Shapiro-Wilk test: W = ", round(result$statistic, 3), ", p = ", round(result$p.value, 3))
 })
 # Check for homogeneity of variances
-ggplot(data, aes(x = KIND, y = Bad)) +
+ggplot(data, aes(x = Modalities, y = Bad)) +
   geom_boxplot() +
   labs(x = "Modality", y = "Bad") +
   ggtitle("Bad ~ Modality")
 
 library(car)
-leveneTest(Bad ~ factor(KIND), data = data)
-fligner.test(Bad ~ factor(KIND), data = data)  #assumption has not violated
+leveneTest(Bad ~ factor(Modalities), data = data)
+fligner.test(Bad ~ factor(Modalities), data = data)  #assumption has not violated
 
-oneway.test(Bad ~ KIND, data = data, var.equal = TRUE)
+oneway.test(Bad ~ Modalities, data = data, var.equal = TRUE)
 
-data$KIND <- with(data, forcats::fct_reorder(KIND, Bad, .fun = median))
+data$Modalities <- with(data, forcats::fct_reorder(Modalities, Bad, .fun = median))
 p1<- ggbetweenstats(
   data = data,
-  x    = KIND, 
+  x    = Modalities, 
   y    = Bad, 
+  ylab = "Frequency of ‘bad’ recommendations",
   type = "p",
   pairwise.comparisons = T,
   pairwise.display = "s",
@@ -249,11 +257,12 @@ p1<- ggbetweenstats(
 
 p2<- ggbetweenstats(
   data = data,
-  x    = KIND, 
+  x    = Modalities, 
   y    = Bad, 
+  ylab = "Frequency of ‘bad’ recommendations",
   type = "np",
   pairwise.comparisons = T,
-  pairwise.display = "s",
+  pairwise.display = "all",
   p.adjust.method = "bonferroni",
   ggtheme = ggplot2::theme_grey(),
   ggstatsplot.layer = FALSE)
@@ -261,48 +270,54 @@ p2<- ggbetweenstats(
 save_plot("modality_np.png", p2, 11, 4.5, "in", 300)
 save_plot("modality_p.png", p1, 11, 4.5, "in", 300)
 grid.arrange(p1,p2)
-conover_test <- conover.test(data$Bad, data$KIND, method = "bonferroni")
+conover_test <- conover.test(data$Bad, data$Modalities, method = "bonferroni")
 
 #############################################
-#         Bad~ SOURCE.                      #
+#         Bad~ `Seed input`.                      #
 #############################################
 
-ggplot(data, aes(x = Bad)) + geom_histogram() + facet_wrap(~SOURCE)
+ggplot(data, aes(x = Bad)) + geom_histogram() + facet_wrap(~`Seed input`)
 # Use by() to split the data by platform and apply the Shapiro-Wilk test
-tapply(data$Bad, data$SOURCE, function(x) {
+tapply(data$Bad, data$`Seed input`, function(x) {
   result <- shapiro.test(x)
   paste0("Shapiro-Wilk test: W = ", round(result$statistic, 3), ", p = ", round(result$p.value, 3))
 })
 # Check for homogeneity of variances
-ggplot(data, aes(x = SOURCE, y = Bad)) +
+ggplot(data, aes(x = `Seed input`, y = Bad)) +
   geom_boxplot() +
-  labs(x = "SOURCE", y = "Bad") +
-  ggtitle("Bad ~ SOURCE")
+  labs(x = "`Seed input`", y = "Bad") +
+  ggtitle("Bad ~ `Seed input`")
 
 library(car)
-leveneTest(Bad ~ factor(SOURCE), data = data)
-fligner.test(Bad ~ factor(SOURCE), data = data)  #assumption has been violated
+leveneTest(Bad ~ factor(`Seed input`), data = data)
+fligner.test(Bad ~ factor(`Seed input`), data = data)  #assumption has been violated
 
-oneway.test(Bad ~ SOURCE, data = data, var.equal = FALSE)
+oneway.test(Bad ~ `Seed input`, data = data, var.equal = FALSE)
 
-data$SOURCE <- with(data, forcats::fct_reorder(SOURCE, Bad, .fun = median))
+data$`Seed input` <- with(data, forcats::fct_reorder(`Seed input`, Bad, .fun = median))
 p1<- ggbetweenstats(
-  data = data,
-  x    = SOURCE, 
+  data = data %>% 
+    group_by(`Seed input`) %>%
+    filter(`Seed input` != "good" | (`Seed input` == "good" & Bad < 0.3)),
+  x    = `Seed input`, 
   y    = Bad, 
+  xlab = "Source input",
+  ylab = "Frequency of ‘bad’ recommendations",
   type = "p",
-  title = "Bad ~ SOURCE",
+  title = "Bad ~ `Seed input`",
   subtitle = "parameteric",
   pairwise.comparisons = T,
-  pairwise.display = "s",
+  pairwise.display = "all",
   var.equal= FALSE,
   ggtheme = ggplot2::theme_grey(),
   ggstatsplot.layer = FALSE)
 
 p2<- ggbetweenstats(
-  data = data,
-  x    = SOURCE, 
-  y    = Bad, 
+  data = data ,
+  x    = `Seed input`, 
+  y    = Bad,
+  xlab = "Source input",
+  ylab = "Frequency of ‘bad’ recommendations", 
   type = "np",
   subtitle = "parameteric",
   pairwise.comparisons = T,
@@ -313,40 +328,42 @@ p2<- ggbetweenstats(
   ggstatsplot.layer = FALSE,
   p.value.label = function(x) round(x, digits = 3))
 
-save_plot("badsource_np.png", p2, 6, 4.5, "in", 300)
-save_plot("badsource_p.png", p1, 6, 4.5, "in", 300)
+save_plot("bad`Seed input`_np.png", p2, 6, 4.5, "in", 300)
+save_plot("bad`Seed input`_p.png", p1, 6, 4.5, "in", 300)
 grid.arrange(p1,p2)
-conover_test <- conover.test(data$Bad, data$SOURCE, method = "bonferroni")
+conover_test <- conover.test(data$Bad, data$`Seed input`, method = "bonferroni")
 
 # Result: insignificant for both parametric and nonparametric
 
 #############################################
-#         Good~ SOURCE                      #
+#         Good~ `Seed input`                      #
 #############################################
 
-ggplot(data, aes(x = GOOD)) + geom_histogram() + facet_wrap(~SOURCE)
+ggplot(data, aes(x = GOOD)) + geom_histogram() + facet_wrap(~`Seed input`)
 # Use by() to split the data by platform and apply the Shapiro-Wilk test
-tapply(data$GOOD, data$SOURCE, function(x) {
+tapply(data$GOOD, data$`Seed input`, function(x) {
   result <- shapiro.test(x)
   paste0("Shapiro-Wilk test: W = ", round(result$statistic, 3), ", p = ", round(result$p.value, 3))
 })
 # Check for homogeneity of variances
-ggplot(data, aes(x = SOURCE, y = GOOD)) +
+ggplot(data, aes(x = `Seed input`, y = GOOD)) +
   geom_boxplot() +
-  labs(x = "SOURCE", y = "GOOD") +
-  ggtitle("GOOD ~ SOURCE")
+  labs(x = "`Seed input`", y = "GOOD") +
+  ggtitle("GOOD ~ `Seed input`")
 
 library(car)
-leveneTest(GOOD ~ factor(SOURCE), data = data)
-fligner.test(GOOD ~ factor(SOURCE), data = data)  #assumption has been violated
+leveneTest(GOOD ~ factor(`Seed input`), data = data)
+fligner.test(GOOD ~ factor(`Seed input`), data = data)  #assumption has been violated
 
-oneway.test(GOOD ~ SOURCE, data = data, var.equal = FALSE)
+oneway.test(GOOD ~ `Seed input`, data = data, var.equal = FALSE)
 
-data$SOURCE <- with(data, forcats::fct_reorder(SOURCE, GOOD, .fun = median))
+data$`Seed input` <- with(data, forcats::fct_reorder(`Seed input`, GOOD, .fun = median))
 p1<- ggbetweenstats(
   data = data,
-  x    = SOURCE, 
-  y    = GOOD, 
+  x    = `Seed input`, 
+  y    = GOOD,
+  xlab = "`Source input",
+  ylab = "Frequency of ‘Good’ recommendations", 
   type = "p",
   bf.message = FALSE,
   pairwise.comparisons = T,
@@ -355,9 +372,11 @@ p1<- ggbetweenstats(
   ggstatsplot.layer = FALSE)
 
 p2<- ggbetweenstats(
-  data = data,
-  x    = SOURCE, 
+  data = data ,
+  x    = `Seed input`, 
   y    = GOOD, 
+  xlab = "`Source input",
+  ylab = "Frequency of ‘Good’ recommendations",
   type = "np",
   pairwise.comparisons = T,
   pairwise.display = "s",
@@ -368,9 +387,9 @@ p2<- ggbetweenstats(
 
 grid.arrange(p1,p2)
 
-save_plot("goodsource_np.png", p2, 6, 4.5, "in", 300)
-save_plot("goodsource_p.png", p1, 6, 4.5, "in", 300)
-conover_test <- conover.test(data$GOOD, data$SOURCE, method = "bonferroni")
+save_plot("good`Seed input`_np.png", p2, 6, 4.5, "in", 300)
+save_plot("good`Seed input`_p.png", p1, 6, 4.5, "in", 300)
+conover_test <- conover.test(data$GOOD, data$`Seed input`, method = "bonferroni")
 
 # Result: significant for both parametric and nonparametric
 
