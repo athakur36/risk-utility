@@ -9,7 +9,9 @@ file_path <- file.choose()
 data <- read_excel(file_path, sheet = "datalist")
 
 # Change the name of the "BAD" column to BAD
-colnames(data)[10] <- "Bad"
+colnames(data)[11] <- "Bad"
+colnames(data)[9] <- "GOOD"
+colnames(data)[6] <- "SeedInput"
 
 # Identify the outliers and remove them manually
 boxplot(data$Bad)
@@ -78,7 +80,7 @@ p1<-ggbetweenstats(
   data = data %>% dplyr::filter(Platform != "AMZN" & Platform != "Intagram") ,
   x    = Platform, 
   y    = Bad, 
-  ylab = "Frequency of ‘bad’ recommendations",
+  ylab = "Frequency of ‘bad’ recommendations updated",
   conf.level = 0.95,
   pairwise.comparisons = TRUE,
   pairwise.display = "s",
@@ -92,7 +94,7 @@ p2<-ggbetweenstats(
   data = data %>% dplyr::filter(!(Platform %in% c("AMZN", "Intagram"))),
   x    = Platform, 
   y    = Bad, 
-  ylab = "Frequency of ‘bad’ recommendations",
+  ylab = "Frequency of 'bad' recommendations",
   conf.level = 0.95,
   pairwise.comparisons = TRUE,
   pairwise.display = "s",
@@ -100,11 +102,11 @@ p2<-ggbetweenstats(
   var.equal= FALSE,
   bf.message = FALSE,
   p.adjust.method = "bonferroni",
-  ggtheme = ggplot2::theme_grey(),
+  ggtheme = ggplot2::theme_grey(base_size = 15),
   ggstatsplot.layer = FALSE)
 
-save_plot("Platform_np.png", p2, 6, 4.5, "in", 300)
-save_plot("Platform_p.png", p1, 6, 4.5, "in", 300)
+save_plot("Platform_np_updated.png", p2, 6, 4.5, "in", 300)
+save_plot("Platform_p_updated.png", p1, 6, 4.5, "in", 300)
 
 grid.arrange(plot1, plot2)
 
@@ -175,15 +177,14 @@ fligner.test(Bad ~ factor(Types), data = data)
 
 # Homogeneity assumption did not match, thus conduting Welch-ANOVA
 set.seed(4)   # for Bayesian reproducibility of 95% CIs
-data$Types <- with(data, forcats::fct_reorder(Types, Bad, .fun = mean))
+data$Types <- with(data, forcats::fct_reorder(Types, Bad, .fun = median))
 p1<-ggbetweenstats(
-  data = data %>% 
-    mutate(Types = ifelse(
-      Types == "kids", "mental health", Types)),
+  data = data %>%
+    mutate(Types = ifelse(Types == "kids", "mental health", Types)),
   x    = Types, 
   y    = Bad,
   xlab = "Types of harms",
-  ylab = "Frequency of ‘bad’ recommendations",
+  ylab = "Frequency of 'bad' recommendations",
   conf.level = 0.95,
   pairwise.comparisons = TRUE,
   type = "parametric",
@@ -194,26 +195,26 @@ p1<-ggbetweenstats(
   ggstatsplot.layer = FALSE)
 
 p2<-ggbetweenstats(
-  data = data %>% 
-    mutate(Types = ifelse(
-      Types == "kids", "mental health", Types)) %>%
+  data = data %>%
+    mutate(Types = ifelse(Types == "kids", "mental health", Types)) %>%
     mutate(Types = fct_reorder(Types, Bad, .fun = median)),
   x = Types,
   y = Bad,
   xlab = "Types of harms",
-  ylab = "Frequency of ‘bad’ recommendations",
+  ylab = "Frequency of 'bad' recommendations",
   conf.level = 0.95,
   pairwise.comparisons = TRUE,
   type = "nonparametric",
-  pairwise.display = "all",
+  pairwise.display = "s",
   p.adjust.method = "bonferroni",
   nboot = 10,
   var.equal = TRUE,
-  ggtheme = ggplot2::theme_grey(),
+  ggtheme = ggplot2::theme_grey(base_size = 15),
+  centrality.label.args = list(size  = 3),
   ggstatsplot.layer = FALSE
 )
 
-save_plot("Types_np.png", p2, 10, 6, "in", 300)
+save_plot("Types_np_updated.png", p2, 10, 6, "in", 300)
 save_plot("Types_p.png", p1, 10, 6, "in", 300)
 
 grid.arrange(p1,p2)
@@ -248,63 +249,64 @@ p1<- ggbetweenstats(
   data = data,
   x    = Modalities, 
   y    = Bad, 
-  ylab = "Frequency of ‘bad’ recommendations",
+  ylab = "Frequency of 'bad' recommendations",
   type = "p",
   pairwise.comparisons = T,
   pairwise.display = "s",
   ggtheme = ggplot2::theme_grey(),
   ggstatsplot.layer = FALSE)
 
+library(stringr)
+data$Modalities <- str_wrap(data$Modalities, width = 10) 
 p2<- ggbetweenstats(
   data = data,
   x    = Modalities, 
   y    = Bad, 
-  ylab = "Frequency of ‘bad’ recommendations",
+  ylab = "Frequency of 'bad' recommendations",
   type = "np",
   pairwise.comparisons = T,
-  pairwise.display = "all",
+  pairwise.display = "s",
   p.adjust.method = "bonferroni",
-  ggtheme = ggplot2::theme_grey(),
+  ggtheme = ggplot2::theme_grey(base_size = 15),
   ggstatsplot.layer = FALSE)
 
-save_plot("modality_np.png", p2, 11, 4.5, "in", 300)
+save_plot("modality_np_updated.png", p2, 11, 4.5, "in", 300)
 save_plot("modality_p.png", p1, 11, 4.5, "in", 300)
 grid.arrange(p1,p2)
 conover_test <- conover.test(data$Bad, data$Modalities, method = "bonferroni")
 
 #############################################
-#         Bad~ `Seed input`.                      #
+#         Bad~ SeedInput.                      #
 #############################################
 
-ggplot(data, aes(x = Bad)) + geom_histogram() + facet_wrap(~`Seed input`)
+ggplot(data, aes(x = Bad)) + geom_histogram() + facet_wrap(~SeedInput)
 # Use by() to split the data by platform and apply the Shapiro-Wilk test
-tapply(data$Bad, data$`Seed input`, function(x) {
+tapply(data$Bad, data$SeedInput, function(x) {
   result <- shapiro.test(x)
   paste0("Shapiro-Wilk test: W = ", round(result$statistic, 3), ", p = ", round(result$p.value, 3))
 })
 # Check for homogeneity of variances
-ggplot(data, aes(x = `Seed input`, y = Bad)) +
+ggplot(data, aes(x = SeedInput, y = Bad)) +
   geom_boxplot() +
-  labs(x = "`Seed input`", y = "Bad") +
-  ggtitle("Bad ~ `Seed input`")
+  labs(x = "SeedInput", y = "Bad") +
+  ggtitle("Bad ~ SeedInput")
 
 library(car)
-leveneTest(Bad ~ factor(`Seed input`), data = data)
-fligner.test(Bad ~ factor(`Seed input`), data = data)  #assumption has been violated
+leveneTest(Bad ~ factor(SeedInput), data = data)
+fligner.test(Bad ~ factor(SeedInput), data = data)  #assumption has been violated
 
-oneway.test(Bad ~ `Seed input`, data = data, var.equal = FALSE)
+oneway.test(Bad ~ SeedInput, data = data, var.equal = FALSE)
 
-data$`Seed input` <- with(data, forcats::fct_reorder(`Seed input`, Bad, .fun = median))
+data$SeedInput <- with(data, forcats::fct_reorder(SeedInput, Bad, .fun = median))
 p1<- ggbetweenstats(
-  data = data %>% 
-    group_by(`Seed input`) %>%
-    filter(`Seed input` != "good" | (`Seed input` == "good" & Bad < 0.3)),
-  x    = `Seed input`, 
+  data = data %>%
+    filter(!(SeedInput == "good" & Bad > 0.3)),
+  x    = SeedInput, 
   y    = Bad, 
   xlab = "Source input",
-  ylab = "Frequency of ‘bad’ recommendations",
+  ylab = "Frequency of 'bad' recommendations",
   type = "p",
-  title = "Bad ~ `Seed input`",
+  title = "Bad ~ SeedInput",
   subtitle = "parameteric",
   pairwise.comparisons = T,
   pairwise.display = "all",
@@ -313,83 +315,84 @@ p1<- ggbetweenstats(
   ggstatsplot.layer = FALSE)
 
 p2<- ggbetweenstats(
-  data = data ,
-  x    = `Seed input`, 
+  data = data %>%
+    filter(!(SeedInput == "good" & Bad > 0.3)),
+  x    = SeedInput, 
   y    = Bad,
   xlab = "Source input",
-  ylab = "Frequency of ‘bad’ recommendations", 
+  ylab = "Frequency of 'bad' recommendations", 
   type = "np",
   subtitle = "parameteric",
   pairwise.comparisons = T,
   pairwise.display = "s",
   var.equal= FALSE,
   p.adjust.method = "bonferroni",
-  ggtheme = ggplot2::theme_grey(),
+  ggtheme = ggplot2::theme_grey(base_size = 15),
   ggstatsplot.layer = FALSE,
   p.value.label = function(x) round(x, digits = 3))
 
-save_plot("bad`Seed input`_np.png", p2, 6, 4.5, "in", 300)
-save_plot("bad`Seed input`_p.png", p1, 6, 4.5, "in", 300)
+save_plot("badSeedInput_np__with_outliers_updated.png", p2, 6, 4.5, "in", 300)
+save_plot("badSeedInput_p.png", p1, 6, 4.5, "in", 300)
 grid.arrange(p1,p2)
-conover_test <- conover.test(data$Bad, data$`Seed input`, method = "bonferroni")
+conover_test <- conover.test(data$Bad, data$SeedInput, method = "bonferroni")
 
 # Result: insignificant for both parametric and nonparametric
 
 #############################################
-#         Good~ `Seed input`                      #
+#         Good~ SeedInput                      #
 #############################################
 
-ggplot(data, aes(x = GOOD)) + geom_histogram() + facet_wrap(~`Seed input`)
+ggplot(data, aes(x = GOOD)) + geom_histogram() + facet_wrap(~SeedInput)
 # Use by() to split the data by platform and apply the Shapiro-Wilk test
-tapply(data$GOOD, data$`Seed input`, function(x) {
+tapply(data$GOOD, data$SeedInput, function(x) {
   result <- shapiro.test(x)
   paste0("Shapiro-Wilk test: W = ", round(result$statistic, 3), ", p = ", round(result$p.value, 3))
 })
 # Check for homogeneity of variances
-ggplot(data, aes(x = `Seed input`, y = GOOD)) +
+ggplot(data, aes(x = SeedInput, y = GOOD)) +
   geom_boxplot() +
-  labs(x = "`Seed input`", y = "GOOD") +
-  ggtitle("GOOD ~ `Seed input`")
+  labs(x = "SeedInput", y = "GOOD") +
+  ggtitle("GOOD ~ SeedInput")
 
 library(car)
-leveneTest(GOOD ~ factor(`Seed input`), data = data)
-fligner.test(GOOD ~ factor(`Seed input`), data = data)  #assumption has been violated
+leveneTest(GOOD ~ factor(SeedInput), data = data)
+fligner.test(GOOD ~ factor(SeedInput), data = data)  #assumption has been violated
 
-oneway.test(GOOD ~ `Seed input`, data = data, var.equal = FALSE)
+oneway.test(GOOD ~ SeedInput, data = data, var.equal = FALSE)
 
-data$`Seed input` <- with(data, forcats::fct_reorder(`Seed input`, GOOD, .fun = median))
+data$SeedInput <- with(data, forcats::fct_reorder(SeedInput, GOOD, .fun = median))
 p1<- ggbetweenstats(
   data = data,
-  x    = `Seed input`, 
+  x    = SeedInput, 
   y    = GOOD,
   xlab = "`Source input",
-  ylab = "Frequency of ‘Good’ recommendations", 
+  ylab = "Frequency of 'Good' recommendations", 
   type = "p",
   bf.message = FALSE,
   pairwise.comparisons = T,
   pairwise.display = "s",
-  ggtheme = ggplot2::theme_grey(),
+  ggtheme = ggplot2::theme_grey(base_size = 11),
   ggstatsplot.layer = FALSE)
 
 p2<- ggbetweenstats(
   data = data ,
-  x    = `Seed input`, 
+  x    = SeedInput, 
   y    = GOOD, 
-  xlab = "`Source input",
-  ylab = "Frequency of ‘Good’ recommendations",
+  xlab = "Source input",
+  ylab = "Frequency of 'Good' recommendations",
   type = "np",
   pairwise.comparisons = T,
   pairwise.display = "s",
   var.equal= TRUE,
   p.adjust.method = "bonferroni",
-  ggtheme = ggplot2::theme_grey(),
+  ggtheme = ggplot2::theme_grey(base_size = 15),
   ggstatsplot.layer = FALSE)
 
 grid.arrange(p1,p2)
 
-save_plot("good`Seed input`_np.png", p2, 6, 4.5, "in", 300)
-save_plot("good`Seed input`_p.png", p1, 6, 4.5, "in", 300)
-conover_test <- conover.test(data$GOOD, data$`Seed input`, method = "bonferroni")
+save_plot("goodSeedInput_np_updated.png", p2, 6, 4.5, "in", 300)
+save_plot("goodSeedInput_p.png", p1, 6, 4.5, "in", 300)
+conover_test <- conover.test(data$GOOD, data$SeedInput, method = "bonferroni")
 
 # Result: significant for both parametric and nonparametric
 
